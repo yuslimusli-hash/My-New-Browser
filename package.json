@@ -1,0 +1,30 @@
+{
+  "name": "yeni_tarayici_denemesi",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.yusli.browser",
+    "productName": "BenimTarayicim",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "files": [
+      "main.js",
+      "index.html",
+      "home.html",
+      "package.json"
+    ]
+  }
+}

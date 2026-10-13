@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>Benim Harika Tarayıcım</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; background: #1e1e1e; color: white; overflow: hidden; }
+    
+    /* Üst Arama Çubuğu Alanı */
+    .toolbar { display: flex; gap: 8px; padding: 10px; background: #2d2d2d; border-bottom: 1px solid #444; align-items: center; }
+    .btn { padding: 8px 12px; background: #3c3c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    .btn:hover { background: #505050; }
+    .url-input { flex: 1; padding: 8px 12px; background: #1e1e1e; color: white; border: 1px solid #444; border-radius: 4px; outline: none; }
+    
+    /* Favoriler (Bookmarks) Çubuğu */
+    .bookmarks-bar { display: flex; gap: 8px; padding: 6px 10px; background: #252526; border-bottom: 1px solid #333; align-items: center; overflow-x: auto; }
+    .bookmark-item { background: #333; padding: 4px 10px; border-radius: 4px; font-size: 12px; color: #ccc; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+    .bookmark-item:hover { background: #444; color: white; }
+    .bookmark-del { color: #ff5555; font-weight: bold; cursor: pointer; }
+
+    /* Ana Ekran ve Geçmiş Paneli Düzeni */
+    .main-container { display: flex; flex: 1; position: relative; width: 100%; height: 100%; }
+    webview { flex: 1; width: 100%; height: 100%; border: none; background: white; }
+
+    /* Yandan Açılan Geçmiş Paneli */
+    .history-panel {
+      position: absolute;
+      right: -320px;
+      top: 0;
+      width: 300px;
+      height: 100%;
+      background: #252526;
+      border-left: 1px solid #444;
+      box-shadow: -5px 0 15px rgba(0,0,0,0.5);
+      transition: right 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      padding: 15px;
+      z-index: 10;
+    }
+    .history-panel.open { right: 0; }
+    .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #444; padding-bottom: 10px; }
+    .history-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+    .history-item { 
+      background: #333; 
+      padding: 8px 10px; 
+      border-radius: 4px; 
+      font-size: 13px; 
+      color: #4CAF50; 
+      cursor: pointer; 
+      white-space: nowrap; 
+      overflow: hidden; 
+      text-overflow: ellipsis; 
+    }
+    .history-item:hover { background: #444; color: white; }
+  </style>
+</head>
+<body>
+
+  <!-- Arama Çubuğu ve Butonlar -->
+  <div class="toolbar">
+    <button class="btn" onclick="goBack()">◄</button>
+    <button class="btn" onclick="goForward()">►</button>
+    <button class="btn" onclick="reloadPage()">↻</button>
+    <button class="btn" onclick="goHome()">🏠</button>
+    <input type="text" id="urlInput" class="url-input" placeholder="Google'da ara veya adres yaz..." onkeydown="checkEnter(event)">
+    <button class="btn" onclick="loadUrl()">Git</button>
+    <button class="btn" onclick="addBookmark()" title="Bu sayfayı favorilere ekle" style="background: #2196F3; color: white;">⭐ Ekle</button>
+    <button class="btn" onclick="toggleHistory()" style="background: #4CAF50; color: white;" title="Geçmiş">📜 Geçmiş</button>
+  </div>
+
+  <!-- Sık Kullanılanlar Çubuğu -->
+  <div id="bookmarksBar" class="bookmarks-bar">
+    <!-- Favoriler buraya dinamik eklenecek -->
+  </div>
+
+  <!-- Ana İçerik Alanı -->
+  <div class="main-container">
+    <webview id="webFrame" src="home.html"></webview>
+
+    <!-- Yan Geçmiş Paneli -->
+    <div id="historyPanel" class="history-panel">
+      <div class="history-header">
+        <h3>Gezinme Geçmişi</h3>
+        <button class="btn" onclick="clearHistory()">Temizle</button>
+      </div>
+      <div id="historyList" class="history-list"></div>
+    </div>
+  </div>
+
+  <script>
+    const webview = document.getElementById('webFrame');
+    const input = document.getElementById('urlInput');
+    const historyPanel = document.getElementById('historyPanel');
+    const historyList = document.getElementById('historyList');
+    const bookmarksBar = document.getElementById('bookmarksBar');
+
+    // Sayfa gezinmelerini dinle
+    webview.addEventListener('did-navigate', (event) => {
+      handleUrlChange(event.url);
+    });
+
+    webview.addEventListener('did-navigate-in-page', (event) => {
+      handleUrlChange(event.url);
+    });
+
+    function handleUrlChange(url) {
+      if (url.includes('home.html')) {
+        input.value = '';
+      } else {
+        input.value = url;
+        saveToHistory(url);
+      }
+    }
+
+    function loadUrl() {
+      let url = input.value.trim();
+      if (!url) return;
+      
+      if (url === 'home.html' || url.endsWith('home.html')) {
+        goHome();
+        return;
+      }
+
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://www.google.com/search?q=' + encodeURIComponent(url);
+      }
+      webview.loadURL(url);
+    }
+
+    function checkEnter(event) {
+      if (event.key === 'Enter') loadUrl();
+    }
+
+    function goBack() { if (webview.canGoBack()) webview.goBack(); }
+    function goForward() { if (webview.canGoForward()) webview.goForward(); }
+    function reloadPage() { webview.reload(); }
+    function goHome() { webview.loadURL('file://' + __dirname.replace(/\\/g, '/') + '/home.html'); }
+
+    // --- GEÇMİŞ MANTIĞI ---
+    function saveToHistory(url) {
+      let history = JSON.parse(localStorage.getItem('myHistory') || '[]');
+      if (history[0] !== url) {
+        history.unshift(url);
+        if (history.length > 50) history.pop();
+        localStorage.setItem('myHistory', JSON.stringify(history));
+        renderHistory();
+      }
+    }
+
+    function renderHistory() {
+      let history = JSON.parse(localStorage.getItem('myHistory') || '[]');
+      historyList.innerHTML = '';
+      if (history.length === 0) {
+        historyList.innerHTML = '<p style="color:#888; font-size:13px;">Henüz geçmiş yok.</p>';
+        return;
+      }
+      history.forEach(url => {
+        let div = document.createElement('div');
+        div.className = 'history-item';
+        div.innerText = url;
+        div.onclick = () => {
+          webview.loadURL(url);
+          toggleHistory();
+        };
+        historyList.appendChild(div);
+      });
+    }
+
+    function toggleHistory() {
+      historyPanel.classList.toggle('open');
+      renderHistory();
+    }
+
+    function clearHistory() {
+      localStorage.removeItem('myHistory');
+      renderHistory();
+    }
+
+    // --- FAVORİLER / KISAYOLLAR MANTIĞI ---
+    function addBookmark() {
+      let currentUrl = input.value.trim();
+      if (!currentUrl || currentUrl.includes('home.html')) return;
+      
+      let bookmarks = JSON.parse(localStorage.getItem('myBookmarks') || '[]');
+      if (!bookmarks.includes(currentUrl)) {
+        bookmarks.push(currentUrl);
+        localStorage.setItem('myBookmarks', JSON.stringify(bookmarks));
+        renderBookmarks();
+      }
+    }
+
+    function removeBookmark(url, event) {
+      event.stopPropagation(); // Üstteki siteye gitme tetiklenmesin
+      let bookmarks = JSON.parse(localStorage.getItem('myBookmarks') || '[]');
+      bookmarks = bookmarks.filter(b => b !== url);
+      localStorage.setItem('myBookmarks', JSON.stringify(bookmarks));
+      renderBookmarks();
+    }
+
+    function renderBookmarks() {
+      let bookmarks = JSON.parse(localStorage.getItem('myBookmarks') || '[]');
+      bookmarksBar.innerHTML = '';
+      
+      if (bookmarks.length === 0) {
+        bookmarksBar.innerHTML = '<span style="font-size:11px; color:#777; padding: 2px 5px;">Henüz favori eklenmedi. Gezindiğin bir sayfada "⭐ Ekle" butonuna basabilirsin!</span>';
+        return;
+      }
+
+      bookmarks.forEach(url => {
+        let item = document.createElement('div');
+        item.className = 'bookmark-item';
+        
+        // URL'in domain kısmını kısa isim olarak alalım (örn: youtube.com)
+        let displayName = url;
+        try {
+          let parsed = new URL(url);
+          displayName = parsed.hostname.replace('www.', '');
+        } catch(e) {}
+
+        item.innerHTML = `<span>🌐 ${displayName}</span> <span class="bookmark-del" title="Favorilerden sil">✕</span>`;
+        
+        // Siteye tıklayınca git
+        item.onclick = () => { webview.loadURL(url); };
+        
+        // Silme çarpısına tıklayınca sil
+        item.querySelector('.bookmark-del').onclick = (e) => removeBookmark(url, e);
+
+        bookmarksBar.appendChild(item);
+      });
+    }
+
+    // İlk açılışta verileri yükle
+    renderHistory();
+    renderBookmarks();
+  </script>
+
+</body>
+</html>
